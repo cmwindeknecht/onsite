@@ -9,8 +9,12 @@ const __dirname = dirname(__filename);
 
 const router = Router();
 
-const getFiles = filename => {
-    const dataFp = normalize(resolve(__dirname, `../data/${filename}`));
+const getFiles = (filename, date = null) => {
+    if (data) {
+        const dataFp = normalize(resolve(__dirname, `../data/${filename}_${date}`));
+    } else {
+        const dataFp = normalize(resolve(__dirname, `../data/${filename}`));
+    }
     const schemaFp = normalize(resolve(__dirname, `../schemas/${filename}`));
 
     const data = readFileSync(`${dataFp}.txt`, "utf8");
@@ -66,9 +70,23 @@ router.get('/view/:file', (req, res) => {
     }
 });
 
-router.get('/execute/:file', (req, res) => {
+const make_post = (data) => {
+    return request.post(data) // to the post URL
+}
+
+const delete_post = (data) => {
+    return request.post(data) // to the cancel url
+}
+
+router.get('/execute/:file/:date', (req, res) => {
     try{
-        const {data, schema} = getFiles(req.params.file);
+        if (req.params.date) {
+            const {data, schema} = getFiles(req.params.file, req.params.date)
+        } else {
+            const {data, schema} = getFiles(req.params.file);
+        }
+        // const {obj_of_data, schema} = getFiles(req.params.schema_name) // schema_name_date.txt
+        // {date: data} // sort this by date
 
         // Format the schema from the text csv
         const schema_formatted = {}
@@ -81,28 +99,59 @@ router.get('/execute/:file', (req, res) => {
                 schema_formatted[`${name}`] = {width, datatype};
             }
         })
-        
+
+        // {
+        //     name: {width: 10, dataType: "string"
+        // }
+        // {'2017-10-01': "IA_PCMH   20171 0\nIA_PCMH   20171 0\n", '2018-10-01: ""}
+
+        // list_of_data = obj_of_data.values()
+        // foreach(data in list_of_data) {
+            // data_values = data.split("\n")
+        // }
+
         // Send the data based on the schema format
         const postedData = data.split("\n").map(d => {
-            const matches = (new RegExp(/(\w*)\s*(\d{4})(\d)(\d\d|\s\d|-\d)/)).exec(d);
-            if (matches) {
-                const measureId = matches[1];
-                const performanceYear = matches[2];
-                const isRequired = matches[3];
-                const minimumScore = matches[4];
+            // grep each value (measure_id, performance)
+            foreach(key,value in schema.object()) 
 
-                const measureData = {"measure_id": measureId, "performance_year": performanceYear, "is_required": isRequired, "minimum_score": minimumScore}
+            // const matches = (new RegExp(/(\w*)\s*(\d{4})(\d)(\d\d|\s\d|-\d)/)).exec(d);
+            
+            let attempts = 0
+
+            while (attempts < 5) {
+                try {
+                    make_post({})
+                } catch {
+                    try {
+                        delete_post({})
+                    } catch {
+                        // delete_post()make_post()
+                    }
+                }
+
+                // TODO: make commit / push
+
                 
-                const requestData = buildRequest(schema_formatted, measureData)
-                request.post(
-                    'https://2swdepm0wa.execute-api.us-east-1.amazonaws.com/prod/NavaInterview/measures',
-                    requestData
-                );
-                return requestData;
+                // if (matches) {
+                //     const measureId = matches[1];
+                //     const performanceYear = matches[2];
+                //     const isRequired = matches[3];
+                //     const minimumScore = matches[4];
+    
+                //     const measureData = {"measure_id": measureId, "performance_year": performanceYear, "is_required": isRequired, "minimum_score": minimumScore}
+                    
+                //     const requestData = buildRequest(schema_formatted, measureData)
+                //     request.post(
+                //         'https://2swdepm0wa.execute-api.us-east-1.amazonaws.com/prod/NavaInterview/measures',
+                //         requestData
+                //     );
+                //     return requestData;
+                }
             }
         }).filter(v => v)
 
-        res.json(postedData)
+        res.json(schema_formatted)
     } catch (err) {
         console.log(err)
         res.status(500);
